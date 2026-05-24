@@ -1,0 +1,1689 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="version" content="v1.1">
+<title>DocAnon Tool — Anonimizacja dokumentów</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://unpkg.com/docx@9.1.0/build/index.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+*:focus-visible { outline: 2px solid var(--accent-teal); outline-offset: 2px; border-radius: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+:root {
+  --bg: transparent;
+  --surface: #ffffff;
+  --surface2: #edf0f5;
+  --border: #c9cdd4;
+  --text: #1f1f1f;
+  --text-dim: #5f6368;
+  --accent: #1E3050;
+  --accent-dim: #e0e5ed;
+  --accent-teal: #3B5088;
+  --accent-teal-dim: #e3e8f2;
+  --green: #16a34a;
+  --green-dim: #16a34a12;
+  --yellow: #ca8a04;
+  --yellow-dim: #ca8a0415;
+  --red: #dc2626;
+  --red-dim: #dc262615;
+  --blue: #3b82f6;
+  --blue-dim: #3b82f615;
+  --orange: #ea580c;
+  --orange-dim: #ea580c12;
+  --purple: #7c3aed;
+  --purple-dim: #7c3aed12;
+  --radius: 14px;
+}
+
+html, body { background: transparent !important; }
+body {
+  font-family: 'Titillium Web', Arial, sans-serif;
+  background: transparent !important;
+  color: var(--text);
+  padding: 0;
+}
+
+.container { max-width: 1060px; margin: 0 auto; padding: 2rem 2rem; }
+
+/* ── Lucide icons ── */
+.icon-xs { width: 14px; height: 14px; vertical-align: -2px; stroke-width: 2; display: inline-block; }
+.icon-sm { width: 16px; height: 16px; vertical-align: -3px; stroke-width: 2; display: inline-block; }
+.icon-lg { width: 36px; height: 36px; stroke-width: 1.5; color: var(--text-dim); }
+
+/* ── Dark mode ── */
+.dark-mode {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #0f3460;
+  --border: #2a4a7f;
+  --text: #e0e0e0;
+  --text-dim: #a0a0b0;
+  --accent: #4a7fc1;
+  --accent-dim: #1a2a4a;
+  --accent-teal: #5b8ad8;
+  --accent-teal-dim: #1a2a4a;
+  --green: #4ade80;
+  --green-dim: #4ade8015;
+  --yellow: #fbbf24;
+  --yellow-dim: #fbbf2415;
+  --red: #f87171;
+  --red-dim: #f8717115;
+  --blue: #60a5fa;
+  --blue-dim: #60a5fa15;
+  --orange: #fb923c;
+  --orange-dim: #fb923c15;
+  --purple: #a78bfa;
+  --purple-dim: #a78bfa15;
+}
+.dark-mode body { color: var(--text); }
+.dark-mode input, .dark-mode select, .dark-mode textarea { background: var(--surface2); color: var(--text); border-color: var(--border); }
+
+/* ── Hero ── */
+.hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 0;
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.hero-bar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-teal) 50%, var(--accent) 100%);
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-bottom: 2rem;
+}
+.hero-top-row {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;
+}
+.hero-top-row .dark-toggle { margin-left: auto; }
+
+.org-badge {
+  display: inline-block; background: var(--accent-teal-dim); border: 1px solid var(--accent-teal);
+  border-radius: 4px; padding: 0.2rem 0.5rem; font-size: 0.84rem; font-weight: 700;
+  color: var(--accent-teal); text-transform: uppercase; letter-spacing: 0.07em;
+}
+.version-badge {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 0.15rem 0.5rem; font-size: 0.84rem; font-weight: 700; color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; vertical-align: middle; position: relative; top: -2px;
+}
+.lang-switch { display: flex; gap: 2px; }
+.lang-btn {
+  padding: 0.15rem 0.5rem; font-size: 0.84rem; font-weight: 700;
+  font-family: inherit; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+}
+.lang-btn:first-child { border-radius: 4px 0 0 4px; }
+.lang-btn:last-child { border-radius: 0 4px 4px 0; }
+.lang-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.dark-toggle {
+  background: none; border: 1px solid var(--border); border-radius: 20px;
+  padding: 0.2rem 0.6rem; cursor: pointer; font-size: 0.85rem;
+  color: var(--text-dim); transition: all 0.2s;
+  display: flex; align-items: center; gap: 0.3rem;
+}
+.dark-toggle:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+
+.hero h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; letter-spacing: -0.02em; }
+.hero-lead { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; margin-bottom: 0.75rem; }
+.hero-author {
+  font-size: 0.84rem; color: var(--text-dim); opacity: 0.7;
+  border-top: 1px solid var(--border); padding-top: 0.75rem; margin-top: 0.75rem;
+}
+
+/* ── Info toggles ── */
+.info-toggles { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+.info-toggle-btn {
+  padding: 0.3rem 0.7rem; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-dim); font-size: 0.84rem;
+  font-family: inherit; cursor: pointer; transition: all 0.2s;
+}
+.info-toggle-btn:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+.info-toggle-btn.active { background: var(--accent-teal); color: #fff; border-color: var(--accent-teal); }
+.info-box {
+  display: none; opacity: 0; background: var(--surface2); border-radius: 14px;
+  border-left: 3px solid var(--accent);
+}
+.info-box.open {
+  display: block; opacity: 1; padding: 1rem 1.2rem; margin-top: 0.5rem; margin-bottom: 0.75rem;
+  animation: infoFadeIn 0.25s ease;
+}
+@keyframes infoFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.info-title { font-size: 0.9rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
+.info-content { font-size: 0.9rem; color: var(--text-dim); line-height: 1.7; }
+
+/* ── Main layout ── */
+.main-section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1.5rem; margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03);
+}
+
+/* ── Input area ── */
+.input-section { margin-bottom: 1.5rem; }
+.input-controls {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;
+}
+.input-label {
+  font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-dim);
+}
+.btn {
+  padding: 0.45rem 0.9rem; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-dim); font-size: 0.84rem;
+  font-family: inherit; cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 0.35rem;
+}
+.btn:hover { border-color: var(--accent-teal); color: var(--accent-teal); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-teal); border-color: var(--accent-teal); color: #fff; }
+.btn-danger { border-color: var(--red); color: var(--red); }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.btn-success { border-color: var(--green); color: var(--green); }
+.btn-success:hover { background: var(--green); color: #fff; }
+
+.input-area {
+  width: 100%; min-height: 180px; padding: 1rem;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface2); font-family: inherit; font-size: 0.9rem;
+  color: var(--text); resize: vertical; line-height: 1.6;
+  transition: border-color 0.15s;
+}
+.input-area:focus { border-color: var(--accent-teal); background: var(--surface); outline: none; }
+.input-area::placeholder { color: var(--text-dim); opacity: 0.6; }
+
+/* ── Stats bar ── */
+.stats-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.stat {
+  background: var(--surface); border: none; border-radius: var(--radius);
+  padding: 0.5rem 0.75rem; font-size: 0.84rem; color: var(--text-dim);
+  cursor: help; min-width: 5rem; text-align: center;
+  flex: 1 1 5rem; max-width: 8rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.03);
+  position: relative;
+}
+.stat-tooltip {
+  display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%); background: var(--accent); color: #fff;
+  font-size: 0.78rem; font-weight: 400; padding: 0.4rem 0.65rem;
+  border-radius: 8px; white-space: nowrap; z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15); pointer-events: none;
+  line-height: 1.4;
+}
+.stat-tooltip::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: var(--accent);
+}
+.stat:hover .stat-tooltip { display: block; }
+.stat strong {
+  display: block; font-size: 1.3rem; font-weight: 700; color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Side-by-side panels ── */
+.panels-wrapper { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+@media (max-width: 768px) { .panels-wrapper { grid-template-columns: 1fr; } }
+.panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 1rem; background: var(--accent); color: #fff;
+  font-size: 0.84rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+}
+.panel-header.anon { background: var(--accent-teal); }
+.panel-copy-btn {
+  padding: 0.2rem 0.4rem !important; border-color: rgba(255,255,255,0.35) !important;
+  color: rgba(255,255,255,0.7) !important; background: transparent !important;
+  border-radius: 6px !important; line-height: 1;
+}
+.panel-copy-btn:hover { border-color: rgba(255,255,255,0.7) !important; color: #fff !important; background: rgba(255,255,255,0.1) !important; }
+.panel-body {
+  padding: 1rem; font-size: 0.9rem; line-height: 1.7; min-height: 200px;
+  max-height: 500px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+}
+.panel-body:empty::after {
+  content: attr(data-placeholder); color: var(--text-dim); opacity: 0.5; font-style: italic;
+}
+.panel-body .entity-highlight {
+  padding: 0.1rem 0.25rem; border-radius: 3px; font-weight: 600; cursor: help; transition: background 0.15s;
+}
+.panel-body .entity-placeholder {
+  padding: 0.1rem 0.3rem; border-radius: 3px;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84rem; font-weight: 500;
+}
+
+/* Entity type colors */
+.etype-person { background: var(--blue-dim); color: var(--blue); border: 1px solid currentColor; }
+.etype-organization { background: var(--purple-dim); color: var(--purple); border: 1px solid currentColor; }
+.etype-location { background: var(--green-dim); color: var(--green); border: 1px solid currentColor; }
+.etype-pesel { background: var(--red-dim); color: var(--red); border: 1px solid currentColor; }
+.etype-nip { background: var(--orange-dim); color: var(--orange); border: 1px solid currentColor; }
+.etype-krs { background: var(--yellow-dim); color: var(--yellow); border: 1px solid currentColor; }
+.etype-regon { background: var(--yellow-dim); color: var(--yellow); border: 1px solid currentColor; }
+.etype-id_number { background: var(--red-dim); color: var(--red); border: 1px solid currentColor; }
+.etype-bank_account { background: var(--orange-dim); color: var(--orange); border: 1px solid currentColor; }
+.etype-phone { background: var(--accent-teal-dim); color: var(--accent-teal); border: 1px solid currentColor; }
+.etype-email { background: var(--accent-teal-dim); color: var(--accent-teal); border: 1px solid currentColor; }
+.etype-date { background: var(--accent-dim); color: var(--accent); border: 1px solid currentColor; }
+.etype-amount { background: var(--green-dim); color: var(--green); border: 1px solid currentColor; }
+
+/* ── Entity list ── */
+.entity-section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1.5rem;
+}
+.entity-section-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.75rem 1rem; border-bottom: 1px solid var(--border);
+}
+.entity-section-title {
+  font-size: 0.84rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-dim);
+}
+.entity-count {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.84rem;
+  color: var(--accent-teal); font-weight: 600;
+}
+.entity-filters {
+  display: flex; gap: 0.3rem; flex-wrap: wrap; padding: 0.5rem 1rem; border-bottom: 1px solid var(--border);
+}
+.entity-filter-btn {
+  padding: 0.2rem 0.55rem; border-radius: 20px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-dim); font-size: 0.78rem;
+  font-family: inherit; cursor: pointer; transition: all 0.15s;
+  display: inline-flex; align-items: center; gap: 0.25rem; opacity: 0.45;
+}
+.entity-filter-btn:hover { border-color: var(--accent-teal); opacity: 1; }
+.entity-filter-btn.active { background: var(--surface2); border-color: var(--border); opacity: 1; }
+.entity-filter-count { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; font-weight: 600; }
+
+.entity-list { max-height: 350px; overflow-y: auto; }
+.entity-row {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.5rem 1rem; border-bottom: 1px solid var(--border);
+  font-size: 0.9rem; transition: background 0.1s;
+}
+.entity-row:last-child { border-bottom: none; }
+.entity-row:hover { background: var(--surface2); }
+.entity-toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.entity-toggle input { opacity: 0; width: 0; height: 0; }
+.entity-toggle .slider {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--border); border-radius: 20px; cursor: pointer; transition: background 0.2s;
+}
+.entity-toggle .slider::before {
+  content: ''; position: absolute; width: 16px; height: 16px;
+  left: 2px; bottom: 2px; background: #fff; border-radius: 50%; transition: transform 0.2s;
+}
+.entity-toggle input:checked + .slider { background: var(--accent-teal); }
+.entity-toggle input:checked + .slider::before { transform: translateX(16px); }
+
+.entity-original { flex: 1; font-weight: 600; word-break: break-all; }
+.entity-arrow { color: var(--text-dim); font-size: 0.78rem; flex-shrink: 0; }
+.entity-replacement {
+  flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 0.84rem;
+  color: var(--accent-teal); word-break: break-all;
+}
+.entity-type-badge {
+  padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0;
+}
+.entity-detection-badge { font-size: 0.72rem; color: var(--text-dim); opacity: 0.7; flex-shrink: 0; }
+
+/* ── Drop zone ── */
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: 10px;
+  padding: 2rem 1.5rem; text-align: center; color: var(--text-dim);
+  font-size: 0.9rem; cursor: pointer; transition: all 0.2s; margin-bottom: 0.75rem;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent-teal); color: var(--accent-teal); background: var(--accent-teal-dim);
+}
+.drop-zone-icon { margin-bottom: 0.6rem; }
+.drop-zone-main { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 0.35rem; }
+.drop-zone-main .drop-zone-link { color: var(--accent-teal); font-weight: 600; }
+.drop-zone:hover .drop-zone-link { text-decoration: underline; }
+.drop-zone-sub { font-size: 0.8rem; color: var(--text-dim); opacity: 0.7; }
+
+/* ── Export bar ── */
+.export-bar {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.75rem 1rem; background: var(--surface2); border-radius: var(--radius); margin-bottom: 1rem;
+}
+.export-bar .input-label { margin-right: auto; }
+
+/* ── Animations ── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease; }
+
+.processing {
+  display: none; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem; margin-bottom: 0.75rem;
+  background: var(--accent-teal-dim); border: 1px solid var(--accent-teal);
+  border-radius: 10px; font-size: 0.84rem; color: var(--accent-teal);
+}
+.processing.active { display: flex; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spinner { width: 16px; height: 16px; border: 2px solid var(--accent-teal-dim); border-top: 2px solid var(--accent-teal); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+.empty-state { text-align: center; padding: 3rem 2rem; color: var(--text-dim); }
+.empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.4; }
+.empty-state-text { font-size: 0.9rem; line-height: 1.6; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* ── Sync scroll highlight ── */
+.scroll-synced { scroll-behavior: smooth; }
+
+/* ── PDF Overlay ── */
+.pdf-overlay-section { display: none; margin-bottom: 1.5rem; }
+.pdf-overlay-section.active { display: block; }
+.pdf-overlay-bar {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  padding: 0.75rem 1rem; background: var(--surface2); border-radius: var(--radius); margin-bottom: 1rem;
+}
+.pdf-overlay-bar .input-label { margin-right: auto; }
+.pdf-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+@media (max-width: 768px) { .pdf-panels { grid-template-columns: 1fr; } }
+.pdf-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.pdf-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 1rem; background: var(--accent); color: #fff;
+  font-size: 0.84rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+}
+.pdf-panel-header.anon { background: var(--accent-teal); }
+.pdf-panel-body {
+  padding: 0.75rem; max-height: 700px; overflow-y: auto; display: flex;
+  flex-direction: column; gap: 0.5rem; align-items: center; background: var(--surface2);
+}
+.pdf-panel-body canvas {
+  max-width: 100%; height: auto; box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+.pdf-page-label {
+  font-size: 0.72rem; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+  text-align: center; padding: 0.2rem 0;
+}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-top-row">
+    <span class="org-badge">Centre for Socially Responsible Innovations (CSRI)</span>
+    <span class="version-badge">v1.1</span>
+    <div class="lang-switch">
+      <button class="lang-btn active" onclick="setLang('pl')">PL</button>
+      <button class="lang-btn" onclick="setLang('en')">EN</button>
+    </div>
+    <button class="dark-toggle" onclick="toggleDark()" aria-label="Przełącz tryb ciemny">
+      <i data-lucide="moon" class="icon-sm" id="darkIcon"></i> <span id="darkLabel">Dark</span>
+    </button>
+  </div>
+  <h1 id="heroTitle">DocAnon Tool</h1>
+  <div class="hero-lead" id="heroLead">Lokalna anonimizacja dokumentów. Wklej lub wczytaj tekst dokumentu, a narzędzie automatycznie wykryje i zamaskuje dane osobowe, identyfikatory i inne wrażliwe informacje. Wszystko działa w Twojej przeglądarce — żadne dane nie opuszczają Twojego komputera.</div>
+
+  <div class="info-toggles">
+    <button class="info-toggle-btn" onclick="toggleInfo('how')">Jak to działa</button>
+    <button class="info-toggle-btn" onclick="toggleInfo('types')">Rozpoznawane encje</button>
+    <button class="info-toggle-btn" onclick="toggleInfo('privacy')">Prywatność</button>
+  </div>
+
+  <div class="info-box" id="info-how">
+    <div class="info-title">Jak to działa</div>
+    <div class="info-content">Narzędzie analizuje tekst za pomocą wyrażeń regularnych i heurystyk zaprojektowanych specjalnie dla języka polskiego. Wykryte encje (imiona, NIPy, adresy itp.) są zastępowane etykietami w nawiasach kwadratowych np. [PERSON_1], [NIP_1]. Mapowanie oryginał → etykieta jest przechowywane wyłącznie w pamięci przeglądarki, co pozwala na przywrócenie oryginalnych danych w dowolnym momencie.</div>
+  </div>
+  <div class="info-box" id="info-types">
+    <div class="info-title">Rozpoznawane typy encji</div>
+    <div class="info-content">PESEL (walidacja sumy kontrolnej), NIP (walidacja sumy kontrolnej), KRS (8–10 cyfr), REGON (9 lub 14 cyfr), numer dowodu osobistego (3 litery + 6 cyfr), numery kont bankowych (26 cyfr, format IBAN), numery telefonów (+48 i lokalne), adresy e-mail, osoby (imiona i nazwiska w kontekście), organizacje (spółki, fundacje, stowarzyszenia, uczelnie), adresy (ulice, miejscowości, kody pocztowe), daty, kwoty pieniężne.</div>
+  </div>
+  <div class="info-box" id="info-privacy">
+    <div class="info-title">Prywatność i bezpieczeństwo</div>
+    <div class="info-content">Wszystkie operacje wykonywane są lokalnie w Twojej przeglądarce. Żadne dane nie są przesyłane na zewnętrzne serwery. Narzędzie nie wymaga połączenia z internetem po załadowaniu strony (poza fontami Google). Możesz to zweryfikować w narzędziach deweloperskich przeglądarki (zakładka Network).</div>
+  </div>
+
+  <div class="hero-author" id="heroAuthor">DocAnon Tool · autor: Piotr Nawrocki</div>
+</div>
+<div class="hero-bar"></div>
+
+<!-- Input section -->
+<div class="main-section input-section">
+  <div class="input-controls">
+    <span class="input-label">Tekst dokumentu</span>
+    <div style="margin-left:auto; display:flex; gap:0.4rem; flex-wrap:wrap;">
+      <input type="file" id="fileInput" accept=".txt,.docx,.doc,.pdf" style="display:none" onchange="handleFileUpload(event)">
+      <button class="btn" onclick="loadExample()"><i data-lucide="file-text" class="icon-xs"></i> <span id="btnExampleLabel">Przykład</span></button>
+      <button class="btn btn-danger" onclick="clearAll()"><i data-lucide="trash-2" class="icon-xs"></i> <span id="btnClearLabel">Wyczyść</span></button>
+    </div>
+  </div>
+
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-icon"><i data-lucide="upload" style="width:28px;height:28px;stroke-width:1.5;"></i></div>
+    <div class="drop-zone-main" id="dropZoneMain">Przeciągnij i upuść pliki tutaj lub <span class="drop-zone-link" id="dropZoneLink">kliknij, by wybrać</span></div>
+    <div class="drop-zone-sub" id="dropZoneSub">TXT, DOCX, PDF — anonimizacja dokumentów tekstowych</div>
+  </div>
+
+  <textarea class="input-area" id="inputText"
+    placeholder="Wklej tekst dokumentu tutaj..."
+    oninput="onInputChange()"></textarea>
+
+  <div style="display:flex; gap:0.5rem; margin-top:0.75rem; flex-wrap:wrap; align-items:center;">
+    <button class="btn btn-primary" onclick="anonymize()" id="btnAnonymize"><i data-lucide="shield" class="icon-xs"></i> <span id="btnAnonymizeLabel">Anonimizuj</span></button>
+    <div class="processing" id="processing">
+      <div class="spinner"></div>
+      <span>Analizuję dokument...</span>
+    </div>
+    <div style="margin-left:auto; font-size:0.84rem; color:var(--text-dim);" id="charCount"></div>
+  </div>
+</div>
+
+<!-- Results (hidden until anonymization) -->
+<div id="resultsArea" style="display:none;">
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- Side-by-side panels -->
+  <div class="panels-wrapper">
+    <div class="panel">
+      <div class="panel-header">
+        <span id="panelOriginalLabel">Oryginał</span>
+        <button class="btn panel-copy-btn" id="btnCopyOrig" onclick="copyToClipboard('originalPanel')" title="Kopiuj"><i data-lucide="copy" class="icon-xs"></i></button>
+      </div>
+      <div class="panel-body scroll-synced" id="originalPanel" data-placeholder="Brak tekstu"
+        onscroll="syncScroll(this, document.getElementById('anonPanel'))"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header anon">
+        <span id="panelAnonLabel">Zanonimizowany</span>
+        <button class="btn panel-copy-btn" id="btnCopyAnon" onclick="copyToClipboard('anonPanel')" title="Kopiuj"><i data-lucide="copy" class="icon-xs"></i></button>
+      </div>
+      <div class="panel-body scroll-synced" id="anonPanel" data-placeholder="Brak tekstu"
+        onscroll="syncScroll(this, document.getElementById('originalPanel'))"></div>
+    </div>
+  </div>
+
+  <!-- Export bar -->
+  <div class="export-bar">
+    <span class="input-label" id="exportLabel">Eksport</span>
+    <button class="btn" onclick="exportAnonymized()"><i data-lucide="download" class="icon-xs"></i> <span id="btnExportTxtLabel">Tekst zanonimizowany</span></button>
+    <button class="btn" onclick="exportDocx()"><i data-lucide="file-text" class="icon-xs"></i> <span id="btnExportDocxLabel">Eksport .docx</span></button>
+    <button class="btn" onclick="exportMapping()"><i data-lucide="braces" class="icon-xs"></i> <span id="btnExportJsonLabel">Mapowanie (JSON)</span></button>
+    <button class="btn btn-success" onclick="restoreOriginal()"><i data-lucide="unlock" class="icon-xs"></i> <span id="btnRestoreLabel">Przywróć oryginalne dane</span></button>
+  </div>
+
+  <!-- PDF Overlay (visible only when source was PDF) -->
+  <div class="pdf-overlay-section" id="pdfOverlaySection">
+    <div class="pdf-overlay-bar">
+      <span class="input-label" id="pdfOverlayLabel">Podgląd PDF</span>
+      <button class="btn" onclick="exportMaskedPdf()"><i data-lucide="download" class="icon-xs"></i> <span id="btnExportPdfLabel">Pobierz zamaskowany PDF</span></button>
+    </div>
+    <div class="pdf-panels">
+      <div class="pdf-panel">
+        <div class="pdf-panel-header"><span id="pdfPanelOrigLabel">Oryginał</span></div>
+        <div class="pdf-panel-body" id="pdfOriginalPanel"></div>
+      </div>
+      <div class="pdf-panel">
+        <div class="pdf-panel-header anon"><span id="pdfPanelMaskedLabel">Zamaskowany</span></div>
+        <div class="pdf-panel-body" id="pdfMaskedPanel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Entity list -->
+  <div class="entity-section">
+    <div class="entity-section-header">
+      <span class="entity-section-title" id="entitySectionTitle">Wykryte encje</span>
+      <span class="entity-count" id="entityCount">0</span>
+      <div style="margin-left:auto; display:flex; gap:0.3rem;">
+        <button class="btn" style="font-size:0.78rem; padding:0.2rem 0.5rem;"
+          onclick="toggleAllEntities(true)" id="btnEnableAll">Włącz wszystkie</button>
+        <button class="btn" style="font-size:0.78rem; padding:0.2rem 0.5rem;"
+          onclick="toggleAllEntities(false)" id="btnDisableAll">Wyłącz wszystkie</button>
+      </div>
+    </div>
+    <div class="entity-filters" id="entityFilters"></div>
+    <div class="entity-list" id="entityList"></div>
+  </div>
+</div>
+
+<!-- Empty state -->
+<div id="emptyState" class="empty-state">
+  <div class="empty-state-icon"><i data-lucide="shield-check" style="width:48px;height:48px;stroke-width:1;"></i></div>
+  <div class="empty-state-text" id="emptyStateText">Wklej lub wczytaj tekst dokumentu, a następnie kliknij „Anonimizuj".<br>Wszystko działa lokalnie w Twojej przeglądarce.</div>
+</div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let entities = [];
+let originalText = '';
+let anonymizedText = '';
+let currentLang = 'pl';
+let entityCounters = {};
+let scrollSyncLock = false;
+let pdfArrayBuffer = null; // stored when user loads a PDF
+let pdfSourceMode = 'text'; // 'text' or 'pdf'
+
+// ══════════════════════════════════════════════════════════════
+//  i18n — full PL/EN dictionary
+// ══════════════════════════════════════════════════════════════
+const I18N = {
+  pl: {
+    pageTitle: 'DocAnon Tool — Anonimizacja dokumentów',
+    heroTitle: 'DocAnon Tool',
+    heroLead: 'Lokalna anonimizacja dokumentów. Wklej lub wczytaj tekst dokumentu, a narzędzie automatycznie wykryje i zamaskuje dane osobowe, identyfikatory i inne wrażliwe informacje. Wszystko działa w Twojej przeglądarce — żadne dane nie opuszczają Twojego komputera.',
+    infoHowBtn: 'Jak to działa',
+    infoTypesBtn: 'Rozpoznawane encje',
+    infoPrivacyBtn: 'Prywatność',
+    infoHowTitle: 'Jak to działa',
+    infoHowContent: 'Narzędzie analizuje tekst za pomocą wyrażeń regularnych i heurystyk zaprojektowanych specjalnie dla języka polskiego. Wykryte encje (imiona, NIPy, adresy itp.) są zastępowane etykietami w nawiasach kwadratowych np. [PERSON_1], [NIP_1]. Mapowanie oryginał → etykieta jest przechowywane wyłącznie w pamięci przeglądarki, co pozwala na przywrócenie oryginalnych danych w dowolnym momencie.',
+    infoTypesTitle: 'Rozpoznawane typy encji',
+    infoTypesContent: 'PESEL (walidacja sumy kontrolnej), NIP (walidacja sumy kontrolnej), KRS (8–10 cyfr), REGON (9 lub 14 cyfr), numer dowodu osobistego (3 litery + 6 cyfr), numery kont bankowych (26 cyfr, format IBAN), numery telefonów (+48 i lokalne), adresy e-mail, osoby (imiona i nazwiska w kontekście), organizacje (spółki, fundacje, stowarzyszenia, uczelnie), adresy (ulice, miejscowości, kody pocztowe), daty, kwoty pieniężne.',
+    infoPrivacyTitle: 'Prywatność i bezpieczeństwo',
+    infoPrivacyContent: 'Wszystkie operacje wykonywane są lokalnie w Twojej przeglądarce. Żadne dane nie są przesyłane na zewnętrzne serwery. Narzędzie nie wymaga połączenia z internetem po załadowaniu strony (poza fontami Google). Możesz to zweryfikować w narzędziach deweloperskich przeglądarki (zakładka Network).',
+    inputLabel: 'Tekst dokumentu',
+    btnUpload: 'Wczytaj plik',
+    btnExample: 'Przykład',
+    btnClear: 'Wyczyść',
+    dropZoneMain: 'Przeciągnij i upuść pliki tutaj lub ',
+    dropZoneLink: 'kliknij, by wybrać',
+    dropZoneSub: 'TXT, DOCX, PDF — anonimizacja dokumentów tekstowych',
+    heroAuthor: 'DocAnon Tool · autor: Piotr Nawrocki',
+    placeholder: 'Wklej tekst dokumentu tutaj...',
+    btnAnonymize: 'Anonimizuj',
+    processing: 'Analizuję dokument...',
+    charSuffix: 'znaków',
+    panelOriginal: 'Oryginał',
+    panelAnonymized: 'Zanonimizowany',
+    btnCopy: 'Kopiuj',
+    copied: 'Skopiowano!',
+    exportLabel: 'Eksport',
+    btnExportTxt: 'Tekst zanonimizowany',
+    btnExportDocx: 'Eksport .docx',
+    btnExportJson: 'Mapowanie (JSON)',
+    btnRestore: 'Przywróć oryginalne dane',
+    entitySectionTitle: 'Wykryte encje',
+    btnEnableAll: 'Włącz wszystkie',
+    btnDisableAll: 'Wyłącz wszystkie',
+    noEntities: 'Brak encji',
+    emptyState: 'Wklej lub wczytaj tekst dokumentu, a następnie kliknij „Anonimizuj".<br>Wszystko działa lokalnie w Twojej przeglądarce.',
+    panelPlaceholder: 'Brak tekstu',
+    statEntities: 'Encji',
+    statEntitiesTooltip: 'Unikalne wykryte elementy (osoby, numery, adresy itp.)',
+    statTypes: 'Typów',
+    statTypesTooltip: 'Ile różnych kategorii encji wykryto',
+    statChars: 'Znaków',
+    statCharsTooltip: 'Łączna długość tekstu źródłowego',
+    statCoverage: 'Pokrycie',
+    statCoverageTooltip: 'Jaki % znaków tekstu został zanonimizowany',
+    alertEmpty: 'Brak tekstu do anonimizacji.',
+    alertFileError: 'Błąd odczytu pliku: ',
+    alertUnsupported: 'Nieobsługiwany format. Użyj .txt, .docx lub .pdf.',
+    exportTxtFilename: 'dokument_zanonimizowany.txt',
+    exportJsonFilename: 'mapowanie_encji.json',
+    exportDocxFilename: 'dokument_zanonimizowany.docx',
+    exportPdfFilename: 'dokument_zamaskowany.pdf',
+    pdfOverlayLabel: 'Podgląd PDF',
+    btnExportPdf: 'Pobierz zamaskowany PDF',
+    pdfPanelOrig: 'Oryginał',
+    pdfPanelMasked: 'Zamaskowany',
+    pdfPage: 'Strona',
+    types: { person:'Osoba', organization:'Organizacja', location:'Lokalizacja', pesel:'PESEL', nip:'NIP', krs:'KRS', regon:'REGON', id_number:'Nr dowodu', bank_account:'Konto', phone:'Telefon', email:'E-mail', date:'Data', amount:'Kwota' },
+  },
+  en: {
+    pageTitle: 'DocAnon Tool — Document anonymization',
+    heroTitle: 'DocAnon Tool',
+    heroLead: 'Local document anonymization. Paste or upload your document text, and the tool will automatically detect and mask personal data, identifiers, and other sensitive information. Everything runs in your browser — no data leaves your computer.',
+    infoHowBtn: 'How it works',
+    infoTypesBtn: 'Recognized entities',
+    infoPrivacyBtn: 'Privacy',
+    infoHowTitle: 'How it works',
+    infoHowContent: 'The tool analyzes text using regular expressions and heuristics optimized for Polish documents, with support for common international patterns (emails, IBANs, phone numbers). Detected entities (names, tax IDs, addresses, etc.) are replaced with bracketed labels such as [PERSON_1], [NIP_1]. The original-to-label mapping is stored only in your browser\'s memory, allowing you to restore the original data at any time.',
+    infoTypesTitle: 'Recognized entity types',
+    infoTypesContent: 'PESEL (checksum validation), NIP / Tax ID (checksum validation), KRS (8–10 digits), REGON (9 or 14 digits), Polish ID card number (3 letters + 6 digits), bank account numbers (26 digits, IBAN format), phone numbers (+48 and contextual), email addresses, persons (first and last names in context), organizations (companies, foundations, associations), addresses (streets, cities, postal codes), dates, monetary amounts.',
+    infoPrivacyTitle: 'Privacy & security',
+    infoPrivacyContent: 'All processing is performed locally in your browser. No data is sent to any external server. The tool requires no internet connection after the page loads (apart from Google Fonts). You can verify this in your browser\'s developer tools (Network tab).',
+    inputLabel: 'Document text',
+    btnUpload: 'Upload file',
+    btnExample: 'Example',
+    btnClear: 'Clear',
+    dropZoneMain: 'Drag and drop files here or ',
+    dropZoneLink: 'click to select',
+    dropZoneSub: 'TXT, DOCX, PDF — text document anonymization',
+    heroAuthor: 'DocAnon Tool · by Piotr Nawrocki',
+    placeholder: 'Paste your document text here...',
+    btnAnonymize: 'Anonymize',
+    processing: 'Analyzing document...',
+    charSuffix: 'characters',
+    panelOriginal: 'Original',
+    panelAnonymized: 'Anonymized',
+    btnCopy: 'Copy',
+    copied: 'Copied!',
+    exportLabel: 'Export',
+    btnExportTxt: 'Anonymized text',
+    btnExportDocx: 'Export .docx',
+    btnExportJson: 'Mapping (JSON)',
+    btnRestore: 'Restore original data',
+    entitySectionTitle: 'Detected entities',
+    btnEnableAll: 'Enable all',
+    btnDisableAll: 'Disable all',
+    noEntities: 'No entities',
+    emptyState: 'Paste or upload a document, then click "Anonymize".<br>Everything runs locally in your browser.',
+    panelPlaceholder: 'No text',
+    statEntities: 'Entities',
+    statEntitiesTooltip: 'Unique detected items (persons, numbers, addresses, etc.)',
+    statTypes: 'Types',
+    statTypesTooltip: 'How many different entity categories were found',
+    statChars: 'Characters',
+    statCharsTooltip: 'Total length of the source text',
+    statCoverage: 'Coverage',
+    statCoverageTooltip: 'What % of text characters were anonymized',
+    alertEmpty: 'No text to anonymize.',
+    alertFileError: 'File read error: ',
+    alertUnsupported: 'Unsupported format. Use .txt, .docx, or .pdf.',
+    exportTxtFilename: 'anonymized_document.txt',
+    exportJsonFilename: 'entity_mapping.json',
+    exportDocxFilename: 'anonymized_document.docx',
+    exportPdfFilename: 'masked_document.pdf',
+    pdfOverlayLabel: 'PDF preview',
+    btnExportPdf: 'Download masked PDF',
+    pdfPanelOrig: 'Original',
+    pdfPanelMasked: 'Masked',
+    pdfPage: 'Page',
+    types: { person:'Person', organization:'Organization', location:'Location', pesel:'PESEL', nip:'Tax ID', krs:'KRS', regon:'REGON', id_number:'ID card', bank_account:'Bank acct', phone:'Phone', email:'Email', date:'Date', amount:'Amount' },
+  }
+};
+
+// Label prefixes for replacement tags like [OSOBA_1] / [PERSON_1]
+const LABEL_PREFIXES = {
+  pl: { person:'OSOBA', organization:'ORGANIZACJA', location:'LOKALIZACJA', pesel:'PESEL', nip:'NIP', krs:'KRS', regon:'REGON', id_number:'NR_DOWODU', bank_account:'KONTO', phone:'TELEFON', email:'EMAIL', date:'DATA', amount:'KWOTA' },
+  en: { person:'PERSON', organization:'ORGANIZATION', location:'LOCATION', pesel:'PESEL', nip:'NIP', krs:'KRS', regon:'REGON', id_number:'ID_NUMBER', bank_account:'BANK_ACCOUNT', phone:'PHONE', email:'EMAIL', date:'DATE', amount:'AMOUNT' }
+};
+
+function t(key) { return (I18N[currentLang] || I18N.pl)[key] || key; }
+function tType(type) { return (I18N[currentLang] || I18N.pl).types[type] || type; }
+function tLabel(type) { return (LABEL_PREFIXES[currentLang] || LABEL_PREFIXES.en)[type] || type.toUpperCase(); }
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === lang.toUpperCase()));
+  document.documentElement.lang = lang;
+  document.title = t('pageTitle');
+  // Hero
+  document.getElementById('heroTitle').textContent = t('heroTitle');
+  document.getElementById('heroLead').textContent = t('heroLead');
+  // Info toggle buttons
+  const infoBtns = document.querySelectorAll('.info-toggle-btn');
+  if (infoBtns[0]) infoBtns[0].textContent = t('infoHowBtn');
+  if (infoBtns[1]) infoBtns[1].textContent = t('infoTypesBtn');
+  if (infoBtns[2]) infoBtns[2].textContent = t('infoPrivacyBtn');
+  // Info boxes
+  document.querySelector('#info-how .info-title').textContent = t('infoHowTitle');
+  document.querySelector('#info-how .info-content').textContent = t('infoHowContent');
+  document.querySelector('#info-types .info-title').textContent = t('infoTypesTitle');
+  document.querySelector('#info-types .info-content').textContent = t('infoTypesContent');
+  document.querySelector('#info-privacy .info-title').textContent = t('infoPrivacyTitle');
+  document.querySelector('#info-privacy .info-content').textContent = t('infoPrivacyContent');
+  // Input section
+  document.querySelector('.input-label').textContent = t('inputLabel');
+  document.getElementById('btnExampleLabel').textContent = t('btnExample');
+  document.getElementById('btnClearLabel').textContent = t('btnClear');
+  document.getElementById('dropZoneMain').childNodes[0].textContent = t('dropZoneMain');
+  document.getElementById('dropZoneLink').textContent = t('dropZoneLink');
+  document.getElementById('dropZoneSub').textContent = t('dropZoneSub');
+  document.getElementById('heroAuthor').textContent = t('heroAuthor');
+  document.getElementById('inputText').placeholder = t('placeholder');
+  document.getElementById('btnAnonymizeLabel').textContent = t('btnAnonymize');
+  document.querySelector('#processing span').textContent = t('processing');
+  // Dark toggle label
+  const isDark = document.documentElement.classList.contains('dark-mode');
+  document.getElementById('darkLabel').textContent = isDark ? 'Light' : 'Dark';
+  // Panels
+  document.getElementById('panelOriginalLabel').textContent = t('panelOriginal');
+  document.getElementById('panelAnonLabel').textContent = t('panelAnonymized');
+  document.getElementById('btnCopyOrig').title = t('btnCopy');
+  document.getElementById('btnCopyAnon').title = t('btnCopy');
+  document.getElementById('originalPanel').setAttribute('data-placeholder', t('panelPlaceholder'));
+  document.getElementById('anonPanel').setAttribute('data-placeholder', t('panelPlaceholder'));
+  // Export bar
+  document.getElementById('exportLabel').textContent = t('exportLabel');
+  document.getElementById('btnExportTxtLabel').textContent = t('btnExportTxt');
+  document.getElementById('btnExportDocxLabel').textContent = t('btnExportDocx');
+  document.getElementById('btnExportJsonLabel').textContent = t('btnExportJson');
+  document.getElementById('btnRestoreLabel').textContent = t('btnRestore');
+  // Entity section
+  document.getElementById('entitySectionTitle').textContent = t('entitySectionTitle');
+  document.getElementById('btnEnableAll').textContent = t('btnEnableAll');
+  document.getElementById('btnDisableAll').textContent = t('btnDisableAll');
+  // PDF overlay
+  document.getElementById('pdfOverlayLabel').textContent = t('pdfOverlayLabel');
+  document.getElementById('btnExportPdfLabel').textContent = t('btnExportPdf');
+  document.getElementById('pdfPanelOrigLabel').textContent = t('pdfPanelOrig');
+  document.getElementById('pdfPanelMaskedLabel').textContent = t('pdfPanelMasked');
+  // Empty state
+  document.getElementById('emptyStateText').innerHTML = t('emptyState');
+  // Update char count
+  onInputChange();
+  // Re-render entity-dependent UI (replacement labels change with language)
+  if (entities.length) {
+    updateAnonymizedText();
+    renderResults();
+    if (pdfSourceMode === 'pdf' && pdfArrayBuffer) renderPdfOverlay();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  DARK MODE
+// ══════════════════════════════════════════════════════════════
+function toggleDark() {
+  document.documentElement.classList.toggle('dark-mode');
+  const isDark = document.documentElement.classList.contains('dark-mode');
+  const el = document.getElementById('darkIcon');
+  el.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+  document.getElementById('darkLabel').textContent = isDark ? 'Light' : 'Dark';
+  lucide.createIcons();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INFO TOGGLES
+// ══════════════════════════════════════════════════════════════
+function toggleInfo(id) {
+  const box = document.getElementById('info-' + id);
+  const btns = document.querySelectorAll('.info-toggle-btn');
+  const isOpen = box.classList.contains('open');
+  document.querySelectorAll('.info-box').forEach(b => b.classList.remove('open'));
+  btns.forEach(b => b.classList.remove('active'));
+  if (!isOpen) {
+    box.classList.add('open');
+    // find button by index
+    const idx = ['how','types','privacy'].indexOf(id);
+    if (idx >= 0) btns[idx].classList.add('active');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SCROLL SYNC
+// ══════════════════════════════════════════════════════════════
+function syncScroll(source, target) {
+  if (scrollSyncLock) return;
+  scrollSyncLock = true;
+  const pct = source.scrollTop / (source.scrollHeight - source.clientHeight || 1);
+  target.scrollTop = pct * (target.scrollHeight - target.clientHeight);
+  requestAnimationFrame(() => { scrollSyncLock = false; });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FILE HANDLING
+// ══════════════════════════════════════════════════════════════
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+dropZone.addEventListener('click', () => document.getElementById('fileInput').click());
+
+function handleFileUpload(e) { if (e.target.files.length) handleFile(e.target.files[0]); }
+
+async function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  pdfArrayBuffer = null;
+  pdfSourceMode = 'text';
+  if (ext === 'txt') {
+    document.getElementById('inputText').value = await file.text();
+    onInputChange();
+  } else if (ext === 'docx' || ext === 'doc') {
+    try {
+      const ab = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: ab });
+      document.getElementById('inputText').value = result.value;
+      onInputChange();
+    } catch (err) { alert(t('alertFileError') + err.message); }
+  } else if (ext === 'pdf') {
+    try {
+      const ab = await file.arrayBuffer();
+      pdfArrayBuffer = ab.slice(0); // keep a copy for overlay rendering
+      pdfSourceMode = 'pdf';
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const lines = [];
+        let lastY = null;
+        for (const item of content.items) {
+          if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) {
+            lines.push('\n');
+          }
+          lines.push(item.str);
+          lastY = item.transform[5];
+        }
+        fullText += lines.join('') + '\n\n';
+      }
+      document.getElementById('inputText').value = fullText.trim();
+      onInputChange();
+    } catch (err) { alert(t('alertFileError') + err.message); }
+  } else {
+    alert(t('alertUnsupported'));
+  }
+}
+
+function onInputChange() {
+  const len = document.getElementById('inputText').value.length;
+  document.getElementById('charCount').textContent = len > 0 ? len + ' ' + t('charSuffix') : '';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  NER ENGINE — Polish-specific
+// ══════════════════════════════════════════════════════════════
+
+function isValidPesel(p) {
+  if (!/^\d{11}$/.test(p)) return false;
+  const w = [1,3,7,9,1,3,7,9,1,3];
+  let sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(p[i]) * w[i];
+  return ((10 - (sum % 10)) % 10) === parseInt(p[10]);
+}
+
+function isValidNip(n) {
+  const c = n.replace(/[\s-]/g, '');
+  if (!/^\d{10}$/.test(c)) return false;
+  const w = [6,5,7,2,3,4,5,6,7];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(c[i]) * w[i];
+  return (sum % 11) === parseInt(c[9]);
+}
+
+// Base nominative names
+const PL_NAMES_BASE = [
+  'Adam','Adrian','Agata','Agnieszka','Aleksander','Aleksandra','Alicja','Andrzej','Anna','Antoni',
+  'Barbara','Bartosz','Beata','Bogdan','Bożena','Cezary','Celina','Czesław',
+  'Damian','Daniel','Danuta','Dariusz','Dawid','Dominik','Dominika','Dorota',
+  'Edward','Edyta','Elżbieta','Emil','Emilia','Ewa','Ewelina',
+  'Filip','Franciszek','Gabriel','Grażyna','Grzegorz',
+  'Halina','Hanna','Helena','Henryk','Irena','Ireneusz','Iwona',
+  'Jacek','Jadwiga','Jakub','Jan','Janina','Janusz','Jarosław','Jerzy','Joanna','Jolanta','Józef','Julia','Justyna',
+  'Kamil','Kamila','Karol','Karolina','Katarzyna','Kazimierz','Klaudia','Konrad','Krystian','Krystyna','Krzysztof',
+  'Laura','Leszek','Lidia','Łukasz',
+  'Maciej','Magdalena','Małgorzata','Marcin','Marek','Maria','Marianna','Mariusz','Marta','Martyna','Mateusz','Michał','Mieczysław','Milena','Monika',
+  'Natalia','Norbert','Olga','Oliwia','Oskar',
+  'Patrycja','Patryk','Paweł','Paulina','Piotr','Przemysław',
+  'Radosław','Rafał','Renata','Robert','Roman','Ryszard',
+  'Sandra','Sebastian','Sławomir','Stanisław','Stefan','Sylwia','Szymon',
+  'Tadeusz','Teresa','Tomasz','Urszula',
+  'Waldemar','Wanda','Weronika','Wiesław','Wiesława','Wiktor','Wiktoria','Witold','Władysław','Wojciech',
+  'Zbigniew','Zenon','Zofia','Zuzanna','Zygmunt',
+];
+// Generate inflected forms programmatically
+function inflectPolishName(name) {
+  const forms = [name];
+  const last = name.slice(-1);
+  const stem = name.slice(0, -1);
+  // Female names ending in -a
+  if (last === 'a' && name.length > 2) {
+    const preLast = stem.slice(-1);
+    forms.push(stem + 'ę'); // Accusative: Barbara→Barbarę
+    forms.push(stem + 'ą'); // Instrumental: Barbara→Barbarą
+    if (name.endsWith('ia') && name.length > 3) {
+      // -ia names: Maria, Emilia, Julia, Natalia
+      const stemIa = name.slice(0, -2);
+      forms.push(stemIa + 'ii'); // Gen: Maria→Marii
+      forms.push(stemIa + 'ię'); // Acc alt
+      forms.push(stemIa + 'ią'); // Inst alt
+    } else if ('kg'.includes(preLast)) {
+      // -ka/-ga names: Agnieszka, Jadwiga, Monika
+      forms.push(stem + 'i'); // Gen: Agnieszki, Jadwigi
+      forms.push(name.slice(0, -2) + 'ce'); // Dat/Loc: Agnieszce, Monice
+    } else {
+      // Regular -a names: Barbara, Anna, Dorota
+      forms.push(stem + 'y'); // Gen: Barbary, Anny
+      // Dat/Loc depends on last consonant of stem
+      if ('rł'.includes(preLast)) forms.push(stem + 'ze'); // Barbarze
+      else if ('n'.includes(preLast)) forms.push(stem.slice(0,-1) + 'nie'); // Anna→Annie, Halina→Halinie
+      else if ('t'.includes(preLast)) forms.push(stem.slice(0,-1) + 'cie'); // Dorota→Dorocie, Danuta→Danucie
+      else if ('s'.includes(preLast)) forms.push(stem.slice(0,-1) + 'sie'); // Teresa→Teresie
+      else if ('d'.includes(preLast)) forms.push(stem.slice(0,-1) + 'dzie'); // Wanda→Wandzie
+      else forms.push(stem + 'ie'); // fallback
+    }
+  }
+  // Male names ending in consonant
+  if (!'aeiouyąęó'.includes(last.toLowerCase()) && name.length > 2) {
+    forms.push(name + 'a'); // Gen/Acc: Adam→Adama, Stanisław→Stanisława
+    forms.push(name + 'owi'); // Dat: Adam→Adamowi
+    forms.push(name + 'em'); // Inst: Adam→Adamem
+    forms.push(name + 'ie'); // Loc: Adam→Adamie
+  }
+  // Special irregular forms
+  const IRREGULAR = {
+    'Paweł': ['Pawła','Pawłowi','Pawłem','Pawle'],
+    'Marek': ['Marka','Markowi','Markiem','Marku'],
+    'Jacek': ['Jacka','Jackowi','Jackiem','Jacku'],
+    'Leszek': ['Leszka','Leszkowi','Leszkiem','Leszku'],
+    'Piotr': ['Piotra','Piotrowi','Piotrem','Piotrze'],
+    'Tomasz': ['Tomasza','Tomaszowi','Tomaszem','Tomaszu'],
+    'Jan': ['Jana','Janowi','Janem','Janie'],
+    'Józef': ['Józefa','Józefowi','Józefem','Józefie'],
+    'Andrzej': ['Andrzeja','Andrzejowi','Andrzejem','Andrzeju'],
+    'Krzysztof': ['Krzysztofa','Krzysztofowi','Krzysztofem','Krzysztofie'],
+    'Grzegorz': ['Grzegorza','Grzegorzowi','Grzegorzem','Grzegorzu'],
+    'Łukasz': ['Łukasza','Łukaszowi','Łukaszem','Łukaszu'],
+    'Maciej': ['Macieja','Maciejowi','Maciejem','Macieju'],
+    'Wojciech': ['Wojciecha','Wojciechowi','Wojciechem','Wojciechu'],
+    'Michał': ['Michała','Michałowi','Michałem','Michale'],
+    'Jerzy': ['Jerzego','Jerzemu','Jerzym'],
+    'Zofia': ['Zofii','Zofię','Zofią'],
+    'Jadwiga': ['Jadwigi','Jadwigę','Jadwigą','Jadwidze'],
+    'Elżbieta': ['Elżbiety','Elżbietę','Elżbietą','Elżbiecie'],
+    'Małgorzata': ['Małgorzaty','Małgorzatę','Małgorzatą','Małgorzacie'],
+    'Katarzyna': ['Katarzyny','Katarzynę','Katarzyną','Katarzynie'],
+    'Agnieszka': ['Agnieszki','Agnieszkę','Agnieszką','Agnieszce'],
+    'Ewa': ['Ewy','Ewę','Ewą','Ewie'],
+  };
+  if (IRREGULAR[name]) forms.push(...IRREGULAR[name]);
+  return forms;
+}
+const PL_NAMES = new Set(PL_NAMES_BASE.flatMap(inflectPolishName));
+
+const EXCLUDED_SURNAMES = new Set([
+  'Polskiej','Polski','Polskiego','Warszawie','Warszawy','Rzeczypospolitej',
+  'Główny','Prezesa','Zarządu','Radzie','Urzędu','Komisji','Ministra','Ministrów',
+  'Czerwca','Lipca','Sierpnia','Września','Października','Listopada','Grudnia',
+  'Stycznia','Lutego','Marca','Kwietnia','Maja',
+  'Cywilnego','Karnego','Pracy','Spółek','Handlowego','Kodeksu','Sądu','Sądowi',
+  'Najmu','Dzierżawy','Umowy','Lokalu','Budynku','Powiatu','Gminy','Miasta',
+]);
+
+function detectEntities(text) {
+  const found = [];
+  const usedRanges = [];
+
+  function add(type, original, start, end, detection) {
+    for (const r of usedRanges) { if (start < r.end && end > r.start) return; }
+    usedRanges.push({ start, end });
+    found.push({ type, original, start, end, detection: detection || 'auto' });
+  }
+
+  let m;
+
+  // 1. E-mail
+  const reEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  while ((m = reEmail.exec(text)) !== null) add('email', m[0], m.index, m.index + m[0].length);
+
+  // 2. IBAN / Bank account
+  const reIban = /(?:PL\s?)?(\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4})/g;
+  while ((m = reIban.exec(text)) !== null) {
+    const clean = m[0].replace(/\s/g, '').replace(/^PL/, '');
+    if (clean.length === 26) add('bank_account', m[0], m.index, m.index + m[0].length);
+  }
+
+  // 3. PESEL
+  const rePesel = /\b(\d{11})\b/g;
+  while ((m = rePesel.exec(text)) !== null) {
+    if (isValidPesel(m[1])) add('pesel', m[0], m.index, m.index + m[0].length);
+  }
+
+  // 4. NIP (with label)
+  const reNip = /\bNIP[:\s]*(\d{3}[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|\d{10})\b/gi;
+  while ((m = reNip.exec(text)) !== null) {
+    if (isValidNip(m[1])) add('nip', m[0], m.index, m.index + m[0].length);
+  }
+  // NIP standalone formatted
+  const reNipF = /\b(\d{3}[\s-]\d{3}[\s-]\d{2}[\s-]\d{2})\b/g;
+  while ((m = reNipF.exec(text)) !== null) {
+    if (isValidNip(m[1])) add('nip', m[0], m.index, m.index + m[0].length);
+  }
+
+  // 5. KRS
+  const reKrs = /\bKRS[:\s]*(?:pod\s+numerem\s+)?(\d{10}|\d{8})\b/gi;
+  while ((m = reKrs.exec(text)) !== null) add('krs', m[0], m.index, m.index + m[0].length);
+
+  // 6. REGON
+  const reRegon = /\bREGON[:\s]*(\d{9}|\d{14})\b/gi;
+  while ((m = reRegon.exec(text)) !== null) add('regon', m[0], m.index, m.index + m[0].length);
+
+  // 7. ID card
+  const reId = /\b([A-Z]{3}\s?\d{6})\b/g;
+  while ((m = reId.exec(text)) !== null) add('id_number', m[0], m.index, m.index + m[0].length);
+
+  // 8. Phone — require +48 prefix or "tel"/"telefon"/"nr" context to avoid false positives
+  const rePhone1 = /\+48[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{3}\b/g;
+  while ((m = rePhone1.exec(text)) !== null) add('phone', m[0], m.index, m.index + m[0].length);
+  const rePhone2 = /(?:tel(?:efon)?\.?|nr\s+telefonu)[:\s]*(\d{3}[\s-]?\d{3}[\s-]?\d{3})\b/gi;
+  while ((m = rePhone2.exec(text)) !== null) add('phone', m[0], m.index, m.index + m[0].length);
+
+  // 9. Amounts
+  const reAmt = /\b(\d{1,3}(?:[\s.]\d{3})*(?:,\d{2})?)\s*(?:zł|PLN|złotych|EUR|USD|euro)\b/gi;
+  while ((m = reAmt.exec(text)) !== null) add('amount', m[0], m.index, m.index + m[0].length);
+
+  // 10. Dates — written form
+  const reDateW = /\b(\d{1,2})\s+(stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)\s+(\d{4})\s*r\.?\b/gi;
+  while ((m = reDateW.exec(text)) !== null) add('date', m[0], m.index, m.index + m[0].length);
+  // Dates — numeric
+  const reDateN = /\b(\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4})\b/g;
+  while ((m = reDateN.exec(text)) !== null) add('date', m[0], m.index, m.index + m[0].length);
+
+  // 11. Postal code + city (also in parentheses)
+  const rePostal = /\b(\d{2}-\d{3})\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)*)\b/g;
+  while ((m = rePostal.exec(text)) !== null) add('location', m[0], m.index, m.index + m[0].length);
+  // Postal code in parentheses: (88-100)
+  const rePostalParen = /\((\d{2}-\d{3})\)/g;
+  while ((m = rePostalParen.exec(text)) !== null) add('location', m[0], m.index, m.index + m[0].length);
+
+  // 11b. City names after prepositions "w/we/z/ze" + optional postal code in parentheses
+  const reCityPrep = /(?:w|we|z|ze|do)\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]{2,}(?:[\s-][A-ZĄĆĘŁŃÓŚŹŻ]?[a-ząćęłńóśźż]+)*)(?:\s*\(\d{2}-\d{3}\))?/g;
+  while ((m = reCityPrep.exec(text)) !== null) {
+    const city = m[1];
+    // Exclude common Polish words that follow these prepositions but aren't cities
+    const NOT_CITIES = new Set(['tym','celu','sprawie','przypadku','ramach','zakresie','trakcie','sposób','szczególności','związku','stosunku','tym','razie','dniu','okresie','terminie','trybie','formie','wysokości','dalszej','części','imieniu','mocy','których','której','którym','którymi','następujący','poniższy','powyższy','przedmiotowym','niniejszym','każdym','żadnym','jakimkolwiek','pewnym','innym','innej','każdej','żadnej','jakiejkolwiek','pewnej','inne','innych','tych','tej','tego','takim','takiej','takich','sobie','siebie','miarę','celach','sposób','stanie','momencie','chwili','sytuacji','której','którym','ile','jakim','jakich','pewnych']);
+    if (city.length > 3 && !NOT_CITIES.has(city.toLowerCase())) {
+      const cityStart = m.index + m[0].indexOf(city);
+      // If there's a postal code in parens after city, include entire match
+      if (m[0].includes('(')) {
+        add('location', m[0].trim(), m.index, m.index + m[0].length);
+      } else {
+        add('location', city, cityStart, cityStart + city.length);
+      }
+    }
+  }
+
+  // 12. Street addresses (all declensions of ulica, aleja, plac, osiedle)
+  const reStreet = /(?:ul\.|ulica|ulicy|ulicą|ulicę|al\.|aleja|alei|aleją|aleję|pl\.|plac|placu|placem|os\.|osiedle|osiedlu|osiedlem)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]?[a-ząćęłńóśźż]+)*(?:\s+\d+[a-zA-Z]?)?(?:\s*(?:lok\.|m\.|\/)\s*\d+[a-zA-Z]?)?/gi;
+  while ((m = reStreet.exec(text)) !== null) {
+    if (m[0].trim().length > 5) add('location', m[0].trim(), m.index, m.index + m[0].length);
+  }
+
+  // 12b. "przy ulicy/ul." with full address
+  const reStreetPrzy = /przy\s+(?:ul\.|ulicy|alei|aleją)\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]?[a-ząćęłńóśźż]+)*(?:\s+\d+[a-zA-Z]?)?(?:\s*(?:lok\.|m\.|\/)\s*\d+[a-zA-Z]?)?/gi;
+  while ((m = reStreetPrzy.exec(text)) !== null) {
+    // Extract just the address part (after "przy ")
+    const addrPart = m[0].substring(m[0].indexOf(' ') + 1).trim();
+    const addrStart = m.index + m[0].indexOf(addrPart);
+    if (addrPart.length > 5) add('location', addrPart, addrStart, addrStart + addrPart.length);
+  }
+
+  // 13. Organizations
+  const reOrg = /(?:[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ]?[a-ząćęłńóśźż]+)*\s+)?(?:spółka\s+z\s+ograniczoną\s+odpowiedzialnością|sp(?:ółka)?\.?\s*z\.?\s*o\.?\s*o\.?|spółka\s+akcyjna|S\.?A\.?|spółka\s+komandytowa|sp(?:ółka)?\.?\s*k\.?|sp(?:ółka)?\.?\s*j\.?|fundacj[aięą]|stowarzyszeni[aeuą])/gi;
+  while ((m = reOrg.exec(text)) !== null) {
+    const val = m[0].trim();
+    if (val.length > 5) add('organization', val, m.index, m.index + m[0].length);
+  }
+
+  // 14. Persons — "Imię Nazwisko" pattern
+  const rePerson = /\b([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:-[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)?)\b/g;
+  while ((m = rePerson.exec(text)) !== null) {
+    if (PL_NAMES.has(m[1]) && m[2].length > 2 && !EXCLUDED_SURNAMES.has(m[2])) {
+      add('person', m[0], m.index, m.index + m[0].length);
+    }
+  }
+  // Persons — three-word names "Imię Drugie Nazwisko"
+  const rePerson3 = /\b([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:-[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)?)\b/g;
+  while ((m = rePerson3.exec(text)) !== null) {
+    if (PL_NAMES.has(m[1]) && PL_NAMES.has(m[2]) && m[3].length > 2 && !EXCLUDED_SURNAMES.has(m[3])) {
+      add('person', m[0], m.index, m.index + m[0].length);
+    }
+  }
+  // Persons after keywords
+  const rePersonCtx = /(?:przez|reprezentowan[aąeęyiou]+\s+przez|zamieszkał[aąeęyiou]+\s+przy|Pan[aąieou]*|Pani[ąeou]*)\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s+[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)+)/gi;
+  while ((m = rePersonCtx.exec(text)) !== null) {
+    const name = m[1].trim();
+    if (name.length > 3) {
+      const ns = m.index + m[0].indexOf(name);
+      add('person', name, ns, ns + name.length);
+    }
+  }
+
+  // 14b. Standalone first names in relational context (syn/córka X i Y)
+  const reNameRelation = /(?:syn[aouemów]*|córk[aięąom]*|żon[ayęąoiem]*|mąż|męż[aouemów]*|dziec[ikoam]*|wnuk[aoiemów]*|wnuczk[aięąom]*|matk[aięąom]*|ojc[aueiomów]*|brat[aueiomów]*|siostr[ayęąoiemó]*|rodzic[aóweomiu]*|chrześniak[aóweomiu]*|chrześnic[ayęąom]*|zięci[aóweomiu]*|synow[ayęąoiem]*|teści[aóweomiu]*|teściow[ayęąoiem]*|bratank[aóweomiu]*|bratanic[ayęąom]*|siostrzeń[caóweomiu]*|siostrzenic[ayęąom]*|wuj[aóweomiu]*|ciotk[aięąom]*|kuzyn[aóweomiu]*|kuzync[ayęąom]*|małżon[kaóweomiu]*|partner[aóweomiu]*|partnerk[aięąom]*|opiekun[aóweomiu]*|opiekunk[aięąom]*|podopieczn[ayegoiemó]*)\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+)(?:\s+i\s+([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+))?/gi;
+  while ((m = reNameRelation.exec(text)) !== null) {
+    if (m[1] && PL_NAMES.has(m[1])) {
+      const s1 = m.index + m[0].indexOf(m[1]);
+      add('person', m[1], s1, s1 + m[1].length);
+    }
+    if (m[2] && PL_NAMES.has(m[2])) {
+      const s2 = m.index + m[0].lastIndexOf(m[2]);
+      add('person', m[2], s2, s2 + m[2].length);
+    }
+  }
+
+  found.sort((a, b) => a.start - b.start);
+  return found;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ANONYMIZATION
+// ══════════════════════════════════════════════════════════════
+function anonymize() {
+  const text = document.getElementById('inputText').value.trim();
+  if (!text) { alert(t('alertEmpty')); return; }
+
+  document.getElementById('processing').classList.add('active');
+  originalText = text;
+
+  setTimeout(() => {
+    const detected = detectEntities(text);
+    entityCounters = {};
+    entities = [];
+    const seen = new Map();
+
+    for (const d of detected) {
+      const key = d.type + '::' + d.original;
+      if (!seen.has(key)) {
+        if (!entityCounters[d.type]) entityCounters[d.type] = 0;
+        entityCounters[d.type]++;
+        const counter = entityCounters[d.type];
+        const entity = {
+          id: entities.length, type: d.type, original: d.original,
+          counter, get replacement() { return `[${tLabel(this.type)}_${this.counter}]`; },
+          enabled: true, detection: d.detection,
+          positions: [{ start: d.start, end: d.end }]
+        };
+        seen.set(key, entity.id);
+        entities.push(entity);
+      } else {
+        entities[seen.get(key)].positions.push({ start: d.start, end: d.end });
+      }
+    }
+
+    updateAnonymizedText();
+    renderResults();
+    document.getElementById('processing').classList.remove('active');
+    document.getElementById('resultsArea').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultsArea').classList.add('fade-in');
+    // PDF overlay
+    if (pdfSourceMode === 'pdf' && pdfArrayBuffer) {
+      document.getElementById('pdfOverlaySection').classList.add('active');
+      renderPdfOverlay();
+    } else {
+      document.getElementById('pdfOverlaySection').classList.remove('active');
+    }
+  }, 50);
+}
+
+function updateAnonymizedText() {
+  let allR = [];
+  for (const e of entities) {
+    if (!e.enabled) continue;
+    // Find all occurrences of this original in text
+    let idx = 0;
+    while (true) {
+      idx = originalText.indexOf(e.original, idx);
+      if (idx === -1) break;
+      allR.push({ start: idx, end: idx + e.original.length, replacement: e.replacement, type: e.type });
+      idx += e.original.length;
+    }
+  }
+  // Sort descending, remove overlaps
+  allR.sort((a, b) => b.start - a.start);
+  const cleaned = [];
+  for (const r of allR) {
+    if (!cleaned.some(c => r.start < c.end && r.end > c.start)) cleaned.push(r);
+  }
+  cleaned.sort((a, b) => b.start - a.start);
+  anonymizedText = originalText;
+  for (const r of cleaned) {
+    anonymizedText = anonymizedText.substring(0, r.start) + r.replacement + anonymizedText.substring(r.end);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  RENDERING
+// ══════════════════════════════════════════════════════════════
+function renderResults() { renderStats(); renderPanels(); renderEntityFilters(); renderEntityList(); }
+
+function renderStats() {
+  const enabled = entities.filter(e => e.enabled);
+  const types = new Set(enabled.map(e => e.type));
+  // Count total occurrences
+  let totalCharsAnon = 0;
+  for (const e of enabled) {
+    let idx = 0, count = 0;
+    while (true) { idx = originalText.indexOf(e.original, idx); if (idx === -1) break; count++; idx += e.original.length; }
+    totalCharsAnon += e.original.length * count;
+  }
+  const coverage = originalText.length > 0 ? ((totalCharsAnon / originalText.length) * 100).toFixed(1) : 0;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><strong>${enabled.length}</strong>${t('statEntities')}<span class="stat-tooltip">${t('statEntitiesTooltip')}</span></div>
+    <div class="stat"><strong>${types.size}</strong>${t('statTypes')}<span class="stat-tooltip">${t('statTypesTooltip')}</span></div>
+    <div class="stat"><strong>${originalText.length}</strong>${t('statChars')}<span class="stat-tooltip">${t('statCharsTooltip')}</span></div>
+    <div class="stat"><strong>${coverage}%</strong>${t('statCoverage')}<span class="stat-tooltip">${t('statCoverageTooltip')}</span></div>
+  `;
+}
+
+function renderPanels() {
+  // Original with highlights
+  let origHtml = escapeHtml(originalText);
+  let highlights = [];
+  for (const e of entities) {
+    if (!e.enabled) continue;
+    const escaped = escapeHtml(e.original);
+    let idx = 0;
+    while (true) {
+      idx = origHtml.indexOf(escaped, idx);
+      if (idx === -1) break;
+      highlights.push({ start: idx, end: idx + escaped.length, type: e.type, escaped, replacement: e.replacement });
+      idx += escaped.length;
+    }
+  }
+  highlights.sort((a, b) => b.start - a.start);
+  const cleanH = [];
+  for (const h of highlights) { if (!cleanH.some(c => h.start < c.end && h.end > c.start)) cleanH.push(h); }
+  cleanH.sort((a, b) => b.start - a.start);
+  for (const h of cleanH) {
+    origHtml = origHtml.substring(0, h.start) +
+      `<span class="entity-highlight etype-${h.type}" title="${h.replacement}">${h.escaped}</span>` +
+      origHtml.substring(h.end);
+  }
+  document.getElementById('originalPanel').innerHTML = origHtml;
+
+  // Anonymized with colored placeholders
+  let anonHtml = escapeHtml(anonymizedText);
+  for (const e of entities) {
+    if (!e.enabled) continue;
+    const esc = escapeHtml(e.replacement);
+    anonHtml = anonHtml.split(esc).join(`<span class="entity-placeholder etype-${e.type}">${esc}</span>`);
+  }
+  document.getElementById('anonPanel').innerHTML = anonHtml;
+}
+
+function renderEntityFilters() {
+  const counts = {};
+  entities.forEach(e => { counts[e.type] = (counts[e.type] || 0) + 1; });
+  document.getElementById('entityFilters').innerHTML = Object.entries(counts).map(([type, count]) =>
+    `<button class="entity-filter-btn active" onclick="filterEntities('${type}', this)" data-type="${type}">
+      <span class="entity-type-badge etype-${type}">${tType(type)}</span>
+      <span class="entity-filter-count">${count}</span>
+    </button>`
+  ).join('');
+  document.getElementById('entityCount').textContent = entities.length;
+}
+
+function entityRowHtml(e) {
+  // Count occurrences in original text
+  let occ = 0, idx = 0;
+  while (true) { idx = originalText.indexOf(e.original, idx); if (idx === -1) break; occ++; idx += e.original.length; }
+  const occBadge = occ > 1 ? `<span class="entity-detection-badge">&times;${occ}</span>` : '';
+  return `<div class="entity-row" data-id="${e.id}" data-type="${e.type}">
+    <label class="entity-toggle">
+      <input type="checkbox" ${e.enabled ? 'checked' : ''} onchange="toggleEntity(${e.id}, this.checked)">
+      <span class="slider"></span>
+    </label>
+    <span class="entity-type-badge etype-${e.type}">${tType(e.type)}</span>
+    <span class="entity-original">${escapeHtml(e.original)}</span>${occBadge}
+    <span class="entity-arrow">&rarr;</span>
+    <span class="entity-replacement">${escapeHtml(e.replacement)}</span>
+  </div>`;
+}
+
+function renderEntityList(filterType) {
+  const list = filterType ? entities.filter(e => e.type === filterType) : entities;
+  document.getElementById('entityList').innerHTML = list.map(entityRowHtml).join('')
+    || `<div style="padding:1rem;color:var(--text-dim);text-align:center;">${t('noEntities')}</div>`;
+}
+
+function toggleEntity(id, enabled) {
+  entities[id].enabled = enabled;
+  updateAnonymizedText(); renderStats(); renderPanels();
+}
+
+function toggleAllEntities(enabled) {
+  entities.forEach(e => e.enabled = enabled);
+  updateAnonymizedText(); renderResults();
+}
+
+function filterEntities(type, btn) {
+  const wasActive = btn.classList.contains('active');
+  const allActive = [...document.querySelectorAll('.entity-filter-btn')].every(b => b.classList.contains('active'));
+  if (allActive) {
+    document.querySelectorAll('.entity-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  } else if (wasActive) {
+    const activeCount = document.querySelectorAll('.entity-filter-btn.active').length;
+    if (activeCount <= 1) {
+      document.querySelectorAll('.entity-filter-btn').forEach(b => b.classList.add('active'));
+    } else {
+      btn.classList.remove('active');
+    }
+  } else {
+    btn.classList.add('active');
+  }
+  // Render based on active filters
+  const activeAll = [...document.querySelectorAll('.entity-filter-btn')].every(b => b.classList.contains('active'));
+  if (activeAll) {
+    renderEntityList();
+  } else {
+    const activeTypes = [...document.querySelectorAll('.entity-filter-btn.active')].map(b => b.dataset.type);
+    const filtered = entities.filter(e => activeTypes.includes(e.type));
+    document.getElementById('entityList').innerHTML = filtered.map(entityRowHtml).join('');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EXPORT / RESTORE
+// ══════════════════════════════════════════════════════════════
+function exportAnonymized() { downloadFile(t('exportTxtFilename'), anonymizedText, 'text/plain'); }
+
+function exportMapping() {
+  const mapping = entities.filter(e => e.enabled).map(e => ({ type: e.type, original: e.original, replacement: e.replacement }));
+  downloadFile(t('exportJsonFilename'), JSON.stringify(mapping, null, 2), 'application/json');
+}
+
+function exportDocx() {
+  if (!anonymizedText) return;
+  const { Document, Paragraph, TextRun, Packer, AlignmentType } = docx;
+  const paragraphs = anonymizedText.split('\n').map(line =>
+    new Paragraph({
+      children: [new TextRun({ text: line, font: 'Calibri', size: 22 })],
+      spacing: { after: 120 },
+    })
+  );
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({
+          children: [new TextRun({ text: currentLang === 'pl' ? 'Dokument zanonimizowany' : 'Anonymized document', bold: true, font: 'Calibri', size: 28 })],
+          spacing: { after: 240 },
+          alignment: AlignmentType.LEFT,
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: (currentLang === 'pl' ? 'Wygenerowano: ' : 'Generated: ') + new Date().toLocaleString(currentLang === 'pl' ? 'pl-PL' : 'en-US'), font: 'Calibri', size: 18, color: '888888' })],
+          spacing: { after: 360 },
+        }),
+        ...paragraphs
+      ]
+    }]
+  });
+  Packer.toBlob(doc).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = t('exportDocxFilename'); a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+function restoreOriginal() {
+  let restored = anonymizedText;
+  for (const e of entities) {
+    if (!e.enabled) continue;
+    while (restored.includes(e.replacement)) {
+      restored = restored.replace(e.replacement, e.original);
+    }
+  }
+  document.getElementById('anonPanel').textContent = restored;
+}
+
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type: type + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyToClipboard(panelId) {
+  const panel = document.getElementById(panelId);
+  navigator.clipboard.writeText(panel.textContent || panel.innerText).then(() => {
+    const btn = panel.closest('.panel').querySelector('.panel-copy-btn');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i data-lucide="check" class="icon-xs"></i>';
+    lucide.createIcons({ nodes: [btn] });
+    setTimeout(() => { btn.innerHTML = origHtml; lucide.createIcons({ nodes: [btn] }); }, 1500);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EXAMPLE
+// ══════════════════════════════════════════════════════════════
+function loadExample() {
+  pdfArrayBuffer = null; pdfSourceMode = 'text';
+  document.getElementById('pdfOverlaySection').classList.remove('active');
+  document.getElementById('inputText').value = `UMOWA NAJMU LOKALU MIESZKALNEGO
+
+zawarta w Warszawie w dniu 20 maja 2026 r. pomiędzy:
+
+NovaLokum spółka z ograniczoną odpowiedzialnością z siedzibą w Warszawie przy ul. Jasnej 12 lok. 4, 00-013 Warszawa, wpisaną do rejestru przedsiębiorców KRS pod numerem 0000974821, NIP: 5252948178, REGON: 521748392, o kapitale zakładowym 50 000 zł, reprezentowaną przez:
+
+Piotra Zielińskiego — Prezesa Zarządu,
+
+zwaną dalej „Wynajmującym",
+
+a
+
+Anną Marią Wiśniewską, zamieszkałą przy ul. Bursztynowej 7 lok. 15, 80-342 Gdańsk, PESEL: 92071465828, legitymującą się dowodem osobistym AXB482917, nr telefonu: +48 512 345 678, e-mail: anna.wisniewska@example.com,
+
+zwaną dalej „Najemcą",
+
+łącznie zwanymi dalej „Stronami".
+
+§ 1. Przedmiot umowy
+1. Wynajmujący oddaje Najemcy do używania lokal mieszkalny położony w Warszawie przy ul. Mokotowskiej 32 lok. 8, 00-561 Warszawa, o powierzchni użytkowej 54,20 m², składający się z dwóch pokoi, kuchni, łazienki i przedpokoju.
+
+§ 2. Czas trwania umowy
+1. Umowa zostaje zawarta na czas oznaczony od dnia 1 czerwca 2026 r. do dnia 31 maja 2027 r.
+
+§ 3. Czynsz i opłaty
+1. Najemca zobowiązuje się płacić Wynajmującemu czynsz najmu w wysokości 3 200,00 zł miesięcznie.
+2. Czynsz płatny jest z góry do 10. dnia każdego miesiąca na rachunek bankowy Wynajmującego: PL 61 1090 1014 0000 0712 1981 2874.
+3. Kaucja zabezpieczająca wynosi 6 400,00 zł i została wpłacona w dniu podpisania niniejszej umowy.
+
+§ 4. Postanowienia końcowe
+1. W sprawach nieuregulowanych niniejszą umową zastosowanie mają przepisy Kodeksu cywilnego oraz ustawy z dnia 21 czerwca 2001 r. o ochronie praw lokatorów.
+2. Umowa została sporządzona w dwóch jednobrzmiących egzemplarzach, po jednym dla każdej ze Stron.
+
+Wynajmujący: _______________          Najemca: _______________
+Piotr Zieliński                       Anna Maria Wiśniewska`;
+  onInputChange();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PDF OVERLAY — render + export
+// ══════════════════════════════════════════════════════════════
+const ENTITY_COLORS = {
+  person: '#3b82f6', organization: '#7c3aed', location: '#16a34a',
+  pesel: '#dc2626', nip: '#ea580c', krs: '#ca8a04', regon: '#ca8a04',
+  id_number: '#dc2626', bank_account: '#ea580c', phone: '#3B5088',
+  email: '#3B5088', date: '#1E3050', amount: '#16a34a'
+};
+
+async function renderPdfOverlay() {
+  if (!pdfArrayBuffer) return;
+  const origPanel = document.getElementById('pdfOriginalPanel');
+  const maskPanel = document.getElementById('pdfMaskedPanel');
+  origPanel.innerHTML = ''; maskPanel.innerHTML = '';
+
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({ data: pdfArrayBuffer.slice(0) }).promise;
+  const scale = 1.5;
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale });
+
+    // Original canvas
+    const origCanvas = document.createElement('canvas');
+    origCanvas.width = viewport.width; origCanvas.height = viewport.height;
+    await page.render({ canvasContext: origCanvas.getContext('2d'), viewport }).promise;
+    const label1 = document.createElement('div');
+    label1.className = 'pdf-page-label';
+    label1.textContent = t('pdfPage') + ' ' + i + ' / ' + pdf.numPages;
+    origPanel.appendChild(origCanvas);
+    origPanel.appendChild(label1);
+
+    // Masked canvas — copy original then draw overlays
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = viewport.width; maskCanvas.height = viewport.height;
+    const ctx = maskCanvas.getContext('2d');
+    ctx.drawImage(origCanvas, 0, 0);
+
+    // Build character position map from text items
+    const content = await page.getTextContent();
+    const charMap = []; // array of { char, x, y, w, h, itemIdx }
+    const items = content.items;
+
+    for (let idx = 0; idx < items.length; idx++) {
+      const item = items[idx];
+      if (!item.str) continue;
+      const tx = item.transform;
+      const fontSize = Math.sqrt(tx[0]*tx[0] + tx[1]*tx[1]) * scale;
+      const baseX = tx[4] * scale;
+      const baseY = viewport.height - (tx[5] * scale);
+      const totalW = item.width * scale;
+      const charW = item.str.length > 0 ? totalW / item.str.length : 0;
+      const h = fontSize * 1.25;
+
+      for (let c = 0; c < item.str.length; c++) {
+        charMap.push({
+          char: item.str[c],
+          x: baseX + c * charW,
+          y: baseY - fontSize,
+          w: charW,
+          h: h,
+          itemIdx: idx
+        });
+      }
+    }
+
+    // Concatenate all chars into page text
+    const pageText = charMap.map(c => c.char).join('');
+    const enabledEntities = entities.filter(e => e.enabled);
+
+    // Find entity occurrences in page text and draw masks
+    for (const e of enabledEntities) {
+      let searchFrom = 0;
+      while (true) {
+        const pos = pageText.indexOf(e.original, searchFrom);
+        if (pos === -1) break;
+        searchFrom = pos + e.original.length;
+
+        // Get bounding box for this occurrence
+        const matchChars = charMap.slice(pos, pos + e.original.length);
+        if (!matchChars.length) continue;
+
+        // Group by line (same y within tolerance)
+        const lines = [];
+        let currentLine = [matchChars[0]];
+        for (let c = 1; c < matchChars.length; c++) {
+          if (Math.abs(matchChars[c].y - currentLine[0].y) < matchChars[c].h * 0.5) {
+            currentLine.push(matchChars[c]);
+          } else {
+            lines.push(currentLine);
+            currentLine = [matchChars[c]];
+          }
+        }
+        lines.push(currentLine);
+
+        const color = ENTITY_COLORS[e.type] || '#3B5088';
+        ctx.globalAlpha = 1;
+
+        for (let li = 0; li < lines.length; li++) {
+          const line = lines[li];
+          const rx = line[0].x - 2;
+          const ry = line[0].y - 1;
+          const rw = (line[line.length-1].x + line[line.length-1].w) - line[0].x + 4;
+          const rh = line[0].h + 2;
+
+          // Opaque filled rectangle
+          ctx.fillStyle = color;
+          ctx.fillRect(rx, ry, rw, rh);
+
+          // Draw replacement label only on first line segment
+          if (li === 0) {
+            const labelFontSize = Math.max(9, line[0].h * 0.6);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${labelFontSize}px 'JetBrains Mono', monospace`;
+            ctx.textBaseline = 'middle';
+            const labelText = e.replacement;
+            const labelW = ctx.measureText(labelText).width;
+            const labelX = rx + (rw - labelW) / 2;
+            const labelY = ry + rh / 2;
+            ctx.fillText(labelText, labelX, labelY);
+          }
+        }
+      }
+    }
+
+    const label2 = document.createElement('div');
+    label2.className = 'pdf-page-label';
+    label2.textContent = t('pdfPage') + ' ' + i + ' / ' + pdf.numPages;
+    maskPanel.appendChild(maskCanvas);
+    maskPanel.appendChild(label2);
+  }
+}
+
+async function exportMaskedPdf() {
+  if (!pdfArrayBuffer) return;
+  const maskPanel = document.getElementById('pdfMaskedPanel');
+  const canvases = maskPanel.querySelectorAll('canvas');
+  if (!canvases.length) return;
+
+  const { jsPDF } = window.jspdf;
+  const firstCanvas = canvases[0];
+  const pdfDoc = new jsPDF({
+    orientation: firstCanvas.width > firstCanvas.height ? 'landscape' : 'portrait',
+    unit: 'px',
+    format: [firstCanvas.width, firstCanvas.height]
+  });
+
+  for (let i = 0; i < canvases.length; i++) {
+    if (i > 0) {
+      const c = canvases[i];
+      pdfDoc.addPage([c.width, c.height], c.width > c.height ? 'landscape' : 'portrait');
+    }
+    const imgData = canvases[i].toDataURL('image/jpeg', 0.92);
+    pdfDoc.addImage(imgData, 'JPEG', 0, 0, canvases[i].width, canvases[i].height);
+  }
+
+  pdfDoc.save(t('exportPdfFilename'));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CLEAR
+// ══════════════════════════════════════════════════════════════
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('charCount').textContent = '';
+  document.getElementById('resultsArea').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'block';
+  document.getElementById('pdfOverlaySection').classList.remove('active');
+  entities = []; originalText = ''; anonymizedText = ''; entityCounters = {};
+  pdfArrayBuffer = null; pdfSourceMode = 'text';
+}
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+onInputChange();
+// Init Lucide icons
+document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+</script>
+</body>
+</html>
